@@ -32,8 +32,6 @@ void setup() {
 
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(relayPin, OUTPUT);
-
-  digitalWrite(LED_BUILTIN, HIGH); // ready/reset
 }
 
 void beep() {
@@ -42,10 +40,18 @@ void beep() {
   digitalWrite(relayPin, LOW);
 }
 
-void onOff(int ms) {
+void greenLedOn() {
   digitalWrite(LED_BUILTIN, HIGH);
-  delay(ms);
+}
+
+void greenLedOff() {
   digitalWrite(LED_BUILTIN, LOW);
+}
+
+void onOff(int ms) {
+  greenLedOn();
+  delay(ms);
+  greenLedOff();
   delay(ms);
 }
 
@@ -58,14 +64,12 @@ void setSelectedProgram(int value) {
   if (selectedProgram == 0) {
     // reset mode
     digitalWrite(relayPin, LOW);
-    digitalWrite(LED_BUILTIN, HIGH);
   }
   else {
-    digitalWrite(LED_BUILTIN, LOW);
-    delay(500);
+    delay(250);
 
     for (int i = 0; i < selectedProgram; i++) {
-      onOff(500);
+      onOff(250);
     }
   }
 }
@@ -92,13 +96,18 @@ void loop() {
 
       int programDuration = programTimes[selectedProgram] * 1000;
       int sleepTime = programDuration - beepTime * 2;
-      
+
       Serial.println("Starting program " + String(selectedProgram));
       Serial.println("Beep (" + String(beepTime) + ") - Sleep (" + String(sleepTime) + ") - Beep(" + String(beepTime) + ")");
 
+      delay(1000); // small delay before the sound
+
+      greenLedOn(); // shooting indicator
       beep();
       delay(sleepTime);
       beep();
+      greenLedOff();
+
       setSelectedProgram(0);
     }
 
