@@ -1,116 +1,136 @@
 /*
-  PPC1500 program for Arduino Micro
-  morten.teinum@gmail.com
+ * PPC 1500 TIMER UNIT
+ * 
+ * morten.teinum@gmail.com
+ * 
+ * [beep]            [beep]
+ * [ .... count down .... ]
+ * 
+ * 
+ * Hardware:
+ * Arduino Nano Board
+ * Grove Shield for Arduino Nano
+ * Grove - Relay (D6)
+ * Grove Dual Button (D4)
+ * Grove - 4-Digit Display (D2)
+ * 
+ * Controls:
+ * 
+ * CycleButton:
+ * 0: Reset, display: PPC
+ * 1:   8 sec
+ * 2:  12 sec
+ * 3:  20 sec
+ * 4:  35 sec
+ * 5:  90 sec
+ * 6: 165 sec
+ * 
+ * Start:
+ * Starts the selected program.
+ */
 
-  Requirements:
-  1. board: https://www.kjell.com/no/produkter/elektro-og-verktoy/arduino/utviklingskort/arduino-micro-utviklingskort-p87112
-  3 leds
-  3 buttons
-  1 relay: https://www.kjell.com/no/produkter/elektro-og-verktoy/arduino/moduler/relemodul-for-arduino-1x-p87032
+#include "TM1637.h"
 
-  Revision
-  2021-09-18, v1
+const int CLK = 2;
+const int DIO = 3;
+TM1637 tm1637(CLK, DIO);
 
-*/
+int cycleButton = 4;
+int startButton = 5;
+int relay = 6;
 
-const int cycleButtonPin = 3;
-const int startButtonPin = 4;
-const int relayPin = 5;
-
-// beep duration and program duration
 const int beepTime = 2000;
 const int programTimes[] = {0, 8, 12, 20, 35, 90, 165};
-// program state
 int selectedProgram = 0;
+
+int8_t TimeDisp[] = {0x7f, 'P', 'P', 'C'};
 
 void setup() {
   Serial.begin(9600);
-  Serial.println("setup");
+  tm1637.init();
+  tm1637.set(BRIGHT_TYPICAL);//BRIGHT_TYPICAL = 2,BRIGHT_DARKEST = 0,BRIGHTEST = 7;
 
-  pinMode(cycleButtonPin, INPUT);
-  pinMode(startButtonPin, INPUT);
-
+  pinMode(cycleButton, INPUT);
+  pinMode(startButton, INPUT);
   pinMode(LED_BUILTIN, OUTPUT);
-  pinMode(relayPin, OUTPUT);
+  pinMode(relay, OUTPUT);
+
+  tm1637.display(TimeDisp);
 }
 
-void beep() {
-  digitalWrite(relayPin, HIGH);
-  delay(beepTime);
-  digitalWrite(relayPin, LOW);
-}
-
-void greenLedOn() {
-  digitalWrite(LED_BUILTIN, HIGH);
-}
-
-void greenLedOff() {
-  digitalWrite(LED_BUILTIN, LOW);
-}
-
-void onOff(int ms) {
-  greenLedOn();
-  delay(ms);
-  greenLedOff();
-  delay(ms);
-}
+int previousCycleButtonState = HIGH;
+int previousStartButtonState = HIGH;
 
 void setSelectedProgram(int value) {
-
   selectedProgram = value % 7;
 
-  Serial.println("setSelectedProgram(" + String(selectedProgram) + ")");
-
   if (selectedProgram == 0) {
-    // reset mode
-    digitalWrite(relayPin, LOW);
-  }
-  else {
-    delay(250);
-
-    for (int i = 0; i < selectedProgram; i++) {
-      onOff(250);
-    }
+    tm1637.display(TimeDisp);
+  } else {
+    tm1637.displayNum(programTimes[selectedProgram]);
   }
 }
 
-uint8_t lastCycleButtonState = LOW;
-uint8_t lastStartButtonState = LOW;
+void beepOn() {
+  digitalWrite(relay, HIGH);
+}
+
+void beepOff() {
+  digitalWrite(relay, LOW);
+}
 
 void loop() {
 
-  int reading = digitalRead(cycleButtonPin);
+  int reading = digitalRead(cycleButton);
 
-  if (reading != lastCycleButtonState) {
-    if (reading == HIGH) {
+  if (reading != previousCycleButtonState) {
+    if (reading == LOW) {
       setSelectedProgram(selectedProgram + 1);
     }
 
-    lastCycleButtonState = reading;
+    previousCycleButtonState = reading;
   }
 
-  reading = digitalRead(startButtonPin);
+  reading = digitalRead(startButton);
 
-  if (reading != lastStartButtonState) {
-    if (reading == HIGH && selectedProgram) {
+  if (reading != previousStartButtonState) {
 
-      int programDuration = programTimes[selectedProgram] * 1000;
-      int sleepTime = programDuration - beepTime * 2;
+    if (reading == LOW && selectedProgram) {
 
-      Serial.println("Starting program " + String(selectedProgram));
-      Serial.println("Beep (" + String(beepTime) + ") - Sleep (" + String(sleepTime) + ") - Beep(" + String(beepTime) + ")");
+      delay(500); // tactical feedback
 
-      delay(1000); // small delay before the sound
+      int beepTime = 2;
+      int remainingSeconds = programTimes[selectedProgram] - 1;
 
-      greenLedOn(); // shooting indicator
-      beep();
-      delay(sleepTime);
-      beep();
-      greenLedOff();
+      digitalWrite(LED_BUILTIN, HIGH);
+
+      beepOn();
+
+      for (int i = 0; remainingSeconds >= 0; remainingSeconds--, i++) {
+
+        // first off
+        if (i == beepTime) {
+          beepOff();
+        }
+
+        delay(1000);
+
+        tm1637.displayNum(remainingSeconds);
+
+        // last on
+        if (remainingSeconds == beepTime) {
+          beepOn();
+        }
+      }
+
+      beepOff();
+
+      digitalWrite(LED_BUILTIN, LOW);
+      digitalWrite(relay, LOW);
 
       setSelectedProgram(0);
     }
 
-    lastStartButtonState = reading;
+    previousStartButtonState = reading;
   }
 }
