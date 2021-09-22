@@ -1,33 +1,33 @@
 /*
- * PPC 1500 TIMER UNIT
- * 
- * morten.teinum@gmail.com
- * 
- * [beep]            [beep]
- * [ .... count down .... ]
- * 
- * 
- * Hardware:
- * Arduino Nano Board
- * Grove Shield for Arduino Nano
- * Grove - Relay (D6)
- * Grove Dual Button (D4)
- * Grove - 4-Digit Display (D2)
- * 
- * Controls:
- * 
- * CycleButton:
- * 0: Reset, display: PPC
- * 1:   8 sec
- * 2:  12 sec
- * 3:  20 sec
- * 4:  35 sec
- * 5:  90 sec
- * 6: 165 sec
- * 
- * Start:
- * Starts the selected program.
- */
+   PPC 1500 TIMER UNIT
+
+   morten.teinum@gmail.com
+
+   [beep]            [beep]
+   [ .... count down .... ]
+
+
+   Hardware:
+   Arduino Nano Board
+   Grove Shield for Arduino Nano
+   Grove - Relay (D6)
+   Grove Dual Button (D4)
+   Grove - 4-Digit Display (D2)
+
+   Controls:
+
+   CycleButton:
+   0: Reset, display: PPC
+   1:   8 sec
+   2:  12 sec
+   3:  20 sec
+   4:  35 sec
+   5:  90 sec
+   6: 165 sec
+
+   Start:
+   Starts the selected program.
+*/
 
 #include "TM1637.h"
 
@@ -41,9 +41,16 @@ int relay = 6;
 
 const int beepTime = 2000;
 const int programTimes[] = {0, 8, 12, 20, 35, 90, 165};
-int selectedProgram = 0;
 
-int8_t TimeDisp[] = {0x7f, 'P', 'P', 'C'};
+// program state
+int selectedProgram = 0;
+int previousCycleButtonState = HIGH;
+int previousStartButtonState = HIGH;
+
+void displayPpc() {
+  int8_t timeDisplay[] = {0x7f, 'P', 'P', 'C'};
+  tm1637.display(timeDisplay);
+}
 
 void setup() {
   Serial.begin(9600);
@@ -55,17 +62,14 @@ void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(relay, OUTPUT);
 
-  tm1637.display(TimeDisp);
+  displayPpc();
 }
-
-int previousCycleButtonState = HIGH;
-int previousStartButtonState = HIGH;
 
 void setSelectedProgram(int value) {
   selectedProgram = value % 7;
 
   if (selectedProgram == 0) {
-    tm1637.display(TimeDisp);
+    displayPpc();
   } else {
     tm1637.displayNum(programTimes[selectedProgram]);
   }
@@ -79,13 +83,56 @@ void beepOff() {
   digitalWrite(relay, LOW);
 }
 
+void loopChangeProgram() {
+  setSelectedProgram(selectedProgram + 1);
+}
+
+void loopStartProgram() {
+  if (!selectedProgram)
+    return;
+
+  delay(500); // tactical feedback
+
+  int beepTime = 2;
+  int remainingSeconds = programTimes[selectedProgram] - 1;
+
+  digitalWrite(LED_BUILTIN, HIGH);
+
+  beepOn();
+
+  for (int i = 0; remainingSeconds >= 0; remainingSeconds--, i++) {
+
+    // first off
+    if (i == beepTime) {
+      beepOff();
+    }
+
+    delay(1000);
+
+    tm1637.displayNum(remainingSeconds);
+
+    // last on
+    if (remainingSeconds == beepTime) {
+      beepOn();
+    }
+  }
+
+  beepOff();
+
+  digitalWrite(LED_BUILTIN, LOW);
+  digitalWrite(relay, LOW);
+
+  setSelectedProgram(0);
+
+}
+
 void loop() {
 
   int reading = digitalRead(cycleButton);
 
   if (reading != previousCycleButtonState) {
     if (reading == LOW) {
-      setSelectedProgram(selectedProgram + 1);
+      loopChangeProgram();
     }
 
     previousCycleButtonState = reading;
@@ -95,40 +142,8 @@ void loop() {
 
   if (reading != previousStartButtonState) {
 
-    if (reading == LOW && selectedProgram) {
-
-      delay(500); // tactical feedback
-
-      int beepTime = 2;
-      int remainingSeconds = programTimes[selectedProgram] - 1;
-
-      digitalWrite(LED_BUILTIN, HIGH);
-
-      beepOn();
-
-      for (int i = 0; remainingSeconds >= 0; remainingSeconds--, i++) {
-
-        // first off
-        if (i == beepTime) {
-          beepOff();
-        }
-
-        delay(1000);
-
-        tm1637.displayNum(remainingSeconds);
-
-        // last on
-        if (remainingSeconds == beepTime) {
-          beepOn();
-        }
-      }
-
-      beepOff();
-
-      digitalWrite(LED_BUILTIN, LOW);
-      digitalWrite(relay, LOW);
-
-      setSelectedProgram(0);
+    if (reading == LOW) {
+      loopStartProgram();
     }
 
     previousStartButtonState = reading;
