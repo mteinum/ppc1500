@@ -3,16 +3,17 @@
 
    morten.teinum@gmail.com
 
-   [beep]            [beep]
-   [ .... count down .... ]
-
+   "line is ready" [3s] [beep]             [beep]
+                        [ .... count down  .... ]
 
    Hardware:
+   
    Arduino Nano Board
    Grove Shield for Arduino Nano
    Grove - Relay (D6)
    Grove Dual Button (D4)
    Grove - 4-Digit Display (D2)
+   12V relay> 896-1AH-D1
 
    Controls:
 
@@ -76,10 +77,12 @@ void setSelectedProgram(int value) {
 }
 
 void beepOn() {
+  digitalWrite(LED_BUILTIN, HIGH);
   digitalWrite(relay, HIGH);
 }
 
 void beepOff() {
+  digitalWrite(LED_BUILTIN, LOW);
   digitalWrite(relay, LOW);
 }
 
@@ -91,12 +94,13 @@ void loopStartProgram() {
   if (!selectedProgram)
     return;
 
-  delay(500); // tactical feedback
+  // "LINE IS READY"
+  // 3 sec
 
-  int beepTime = 2;
+  delay(3000);
+
+  int beepTime = 1;
   int remainingSeconds = programTimes[selectedProgram] - 1;
-
-  digitalWrite(LED_BUILTIN, HIGH);
 
   beepOn();
 
@@ -119,11 +123,9 @@ void loopStartProgram() {
 
   beepOff();
 
-  digitalWrite(LED_BUILTIN, LOW);
-  digitalWrite(relay, LOW);
-
   setSelectedProgram(0);
 
+  delay(100);
 }
 
 void loop() {
