@@ -24,7 +24,8 @@
    3:  20 sec
    4:  35 sec
    5:  90 sec
-   6: 165 sec
+   6: 120 sec
+   7: 165 sec
 
    Start:
    Starts the selected program.
@@ -41,7 +42,8 @@ int startButton = 5;
 int relay = 6;
 
 const int beepTime = 2000;
-const int programTimes[] = {0, 8, 12, 20, 35, 90, 165};
+const int programTimes[] = {0, 8, 12, 20, 35, 90, 120, 165};
+const int programCount = sizeof(programTimes) / sizeof(int);
 
 // program state
 int selectedProgram = 0;
@@ -67,7 +69,7 @@ void setup() {
 }
 
 void setSelectedProgram(int value) {
-  selectedProgram = value % 7;
+  selectedProgram = value % programCount;
 
   if (selectedProgram == 0) {
     displayPpc();
